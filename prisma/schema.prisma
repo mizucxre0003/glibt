@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hashed
+  role      Role     @default(SHOP_OWNER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  shop      Shop?
+}
+
+enum Role {
+  SUPER_ADMIN
+  SHOP_OWNER
+}
+
+model Shop {
+  id            String   @id @default(cuid())
+  name          String?
+  ownerId       String   @unique
+  owner         User     @relation(fields: [ownerId], references: [id])
+  botToken      String   // Encrypted (AES-256)
+  botUsername   String?
+  botName       String?
+  isBotActive   Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  isBanned      Boolean  @default(false)
+  
+  // Branding
+  primaryColor  String   @default("#000000")
+  welcomeMessage String?
+
+  products      Product[]
+  categories    Category[]
+  orders        Order[]
+  customers     Customer[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  telegramId BigInt
+  firstName  String?
+  username   String?
+  shopId     String
+  shop       Shop     @relation(fields: [shopId], references: [id])
+  orders     Order[]
+
+  createdAt  DateTime @default(now())
+  
+  @@unique([shopId, telegramId])
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  shopId    String
+  shop      Shop      @relation(fields: [shopId], references: [id])
+  parentId  String?
+  parent    Category? @relation("CategoryToSubcategory", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryToSubcategory")
+  products  Product[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  price       Decimal
+  oldPrice    Decimal?
+  images      String[] // URLs
+  isAvailable Boolean  @default(true)
+  isPreorder  Boolean  @default(false)
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id])
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  shopId      String
+  shop        Shop        @relation(fields: [shopId], references: [id])
+  customerId  String
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  status      OrderStatus @default(NEW)
+  totalAmount Decimal
+  
+  // Delivery Info
+  address     String?
+  deliveryTime String?
+  phone       String?
+  comment     String?
+
+  items       OrderItem[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  NEW
+  ACCEPTED
+  SHIPPING
+  COMPLETED
+  CANCELLED
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Decimal // Snapshot price at time of order
+}
