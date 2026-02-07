@@ -1,8 +1,9 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "module": "commonjs",
         "outDir": "dist",
+        "module": "commonjs",
+        "target": "es2020",
         "noEmit": false
     },
     "include": [
