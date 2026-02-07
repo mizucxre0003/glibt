@@ -51,8 +51,8 @@ import { Pencil, Trash2, Plus, Loader2, ImagePlus, ImageIcon } from "lucide-reac
 const productSchema = z.object({
     name: z.string().min(1, "Name is required"),
     description: z.string().optional(),
-    price: z.preprocess((val) => Number(val), z.number().min(0)),
-    stock: z.preprocess((val) => Number(val), z.number().int().min(0)),
+    price: z.coerce.number().min(0),
+    stock: z.coerce.number().int().min(0),
     categoryId: z.string().optional(),
     imageUrl: z.string().optional(),
 })
