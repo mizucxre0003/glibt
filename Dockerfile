@@ -25,5 +25,7 @@ RUN npx prisma generate
 # Let's try to increase node memory limit first as it is the easiest fix for "Heaps"
 ENV NODE_OPTIONS="--max-old-space-size=512"
 
+RUN npm run build
+
 # Start the application
 CMD ["npm", "start"]
