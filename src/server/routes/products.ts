@@ -52,7 +52,7 @@ export async function productRoutes(fastify: FastifyInstance) {
                     description: data.description,
                     price: data.price,
                     stock: data.stock,
-                    imageUrl: data.imageUrl,
+                    images: data.imageUrl ? [data.imageUrl] : [],
                     isActive: data.isActive,
                     category: data.categoryId ? { connect: { id: data.categoryId } } : undefined,
                     shop: { connect: { id: user.shopId } }
@@ -115,7 +115,7 @@ export async function productRoutes(fastify: FastifyInstance) {
                     description: data.description,
                     price: data.price,
                     stock: data.stock,
-                    imageUrl: data.imageUrl,
+                    images: data.imageUrl ? [data.imageUrl] : undefined,
                     isActive: data.isActive,
                     category: data.categoryId ? { connect: { id: data.categoryId } } : data.categoryId === null ? { disconnect: true } : undefined
                 }
