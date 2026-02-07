@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import prisma from '../../../../lib/prisma'
-import { getAuthUser } from '../../../../lib/auth-helper'
+import prisma from '../../../lib/prisma'
+import { getAuthUser } from '../../../lib/auth-helper'
 
 const categoryCreateSchema = z.object({
     name: z.string().min(1, "Name is required"),

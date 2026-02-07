@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { Telegraf } from 'telegraf'
-import prisma from '../../../../lib/prisma'
-import { decrypt } from '../../../../lib/crypto'
-import { getAuthUser } from '../../../../lib/auth-helper'
+import prisma from '../../../lib/prisma'
+import { decrypt } from '../../../lib/crypto'
+import { getAuthUser } from '../../../lib/auth-helper'
 
 export async function POST(request: Request) {
     try {

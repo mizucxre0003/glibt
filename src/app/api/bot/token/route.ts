@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { Telegraf } from 'telegraf'
-import prisma from '../../../../lib/prisma'
-import { encrypt } from '../../../../lib/crypto'
-import { getAuthUser } from '../../../../lib/auth-helper'
+import prisma from '../../../lib/prisma'
+import { encrypt } from '../../../lib/crypto'
+import { getAuthUser } from '../../../lib/auth-helper'
 
 const tokenSchema = z.object({
     token: z.string().min(10, "Token is too short"),
