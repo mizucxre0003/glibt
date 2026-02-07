@@ -18,14 +18,12 @@ COPY . .
 RUN npx prisma generate
 
 # Build the Next.js app
-# Start the application using standalone build
-# This requires copying the standalone folder and static files
-# But since we use a custom server, we need to point to it differently or stick to custom server with optimized build
-# For custom server + standalone, it's tricky.
-# Let's try to increase node memory limit first as it is the easiest fix for "Heaps"
-ENV NODE_OPTIONS="--max-old-space-size=512"
-
+# Set env to production for build to avoid dev dependencies issues if any
+ENV NODE_ENV=production
 RUN npm run build
+
+# Expose the port the app runs on
+EXPOSE 3000
 
 # Start the application
 CMD ["npm", "start"]
