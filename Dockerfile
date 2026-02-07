@@ -1,7 +1,6 @@
-# Use Node.js LTS
-FROM node:18-alpine
+# Stage 1: Builder
+FROM node:18-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Copy package files
@@ -18,16 +17,29 @@ COPY . .
 RUN npx prisma generate
 
 # Build the Next.js app
-# Set env to production for build to avoid dev dependencies issues if any
 ENV NODE_ENV=production
 RUN npm run build
 
-# Expose the port the app runs on
+# Stage 2: Runner
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy necessary files from builder
+# Copy public folder
+COPY --from=builder /app/public ./public
+
+# Copy standalone build
+# This copies the contents of .next/standalone to the root of /app
+COPY --from=builder /app/.next/standalone ./
+
+# Copy static files
+COPY --from=builder /app/.next/static ./.next/static
+
+# Expose the port
 EXPOSE 3000
 
-# Start the application
-# Start the application
-COPY --from=0 /app/public ./public
-COPY --from=0 /app/.next/static ./.next/static
-
-CMD ["node", ".next/standalone/server.js"]
+# Start command
+CMD ["node", "server.js"]
