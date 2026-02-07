@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { uploadImage } from '../../../lib/cloudinary'
-import { getAuthUser } from '../../../lib/auth-helper'
+import { uploadImage } from '@/lib/cloudinary'
+import { getAuthUser } from '@/lib/auth-helper'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'

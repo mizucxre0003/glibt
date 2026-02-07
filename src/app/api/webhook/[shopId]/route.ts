@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Telegraf } from 'telegraf'
-import prisma from '../../../../lib/prisma'
-import { decrypt } from '../../../../lib/crypto'
+import prisma from '@/lib/prisma'
+import { decrypt } from '@/lib/crypto'
 
 // Map to store bot instances in memory
 const botCache = new Map<string, Telegraf>()

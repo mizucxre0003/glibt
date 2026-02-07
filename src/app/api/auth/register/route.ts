@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
-import prisma from '../../../../lib/prisma'
-import { getJwtSecret } from '../../../../lib/auth-helper'
+import prisma from '@/lib/prisma'
+import { getJwtSecret } from '@/lib/auth-helper'
 
 const registerSchema = z.object({
     email: z.string().email(),
