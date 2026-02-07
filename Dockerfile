@@ -26,4 +26,8 @@ RUN npm run build
 EXPOSE 3000
 
 # Start the application
-CMD ["npm", "start"]
+# Start the application
+COPY --from=0 /app/public ./public
+COPY --from=0 /app/.next/static ./.next/static
+
+CMD ["node", ".next/standalone/server.js"]
