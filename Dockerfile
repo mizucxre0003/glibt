@@ -28,9 +28,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Copy necessary files from builder
-# Copy public folder
-COPY --from=builder /app/public ./public
-
 # Copy standalone build
 # This copies the contents of .next/standalone to the root of /app
 COPY --from=builder /app/.next/standalone ./
