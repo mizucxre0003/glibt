@@ -50,6 +50,11 @@ app.prepare().then(async () => {
         return { status: 'ok', timestamp: new Date() }
     })
 
+    // Koyeb Health Check
+    server.get('/health', async (req, reply) => {
+        return { status: 'ok' }
+    })
+
     // Fallback to Next.js for all other routes
     server.all('*', async (req, reply) => {
         const parsedUrl = parse(req.raw.url || '', true)
