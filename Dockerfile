@@ -26,6 +26,7 @@ FROM node:18-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
 
 # Copy necessary files from builder
 # Copy standalone build
