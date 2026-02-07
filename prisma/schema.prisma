@@ -81,8 +81,9 @@ model Product {
   description String?
   price       Decimal
   oldPrice    Decimal?
+  stock       Int      @default(0)
   images      String[] // URLs
-  isAvailable Boolean  @default(true)
+  isActive    Boolean  @default(true)
   isPreorder  Boolean  @default(false)
   shopId      String
   shop        Shop     @relation(fields: [shopId], references: [id])
