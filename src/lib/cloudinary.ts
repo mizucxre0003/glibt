@@ -1,4 +1,3 @@
-import partition from 'lodash/partition' // We might need lodash later, but for now standard imports
 import { v2 as cloudinary } from 'cloudinary'
 
 // Configure Cloudinary
