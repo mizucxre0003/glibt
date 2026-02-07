@@ -68,7 +68,7 @@ export default function ProductsPage() {
     const [uploading, setUploading] = useState(false)
 
     const form = useForm<z.infer<typeof productSchema>>({
-        resolver: zodResolver(productSchema),
+        resolver: zodResolver(productSchema) as any,
         defaultValues: {
             name: "",
             description: "",
