@@ -22,7 +22,20 @@ export async function POST(request: Request) {
         const token = decrypt(shop.botToken)
         const bot = new Telegraf(token)
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        // Determine App URL
+        let appUrl = process.env.NEXT_PUBLIC_APP_URL;
+        if (!appUrl) {
+            const host = request.headers.get('host');
+            const protocol = host?.includes('localhost') ? 'http' : 'https';
+            if (host) {
+                appUrl = `${protocol}://${host}`;
+            } else {
+                appUrl = 'http://localhost:3000';
+            }
+        }
+
+        console.log(`[Webhook Setup] Setting webhook for shop ${shop.id} to ${appUrl}`);
+
         const webhookUrl = `${appUrl}/api/webhook/${shop.id}`
 
         // Set webhook

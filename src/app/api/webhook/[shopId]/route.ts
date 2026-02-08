@@ -85,21 +85,27 @@ function setupBotLogic(bot: Telegraf, shopId: string) {
 
     // /start command
     bot.start(async (ctx) => {
-        const shopUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://koyeb-app-url.com'
+        console.log(`[Bot] /start command received for shop ${shopId}`);
+        const shopUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://koyeb-app-url.com' // Fallback for button link if env invalid
         const miniAppUrl = `${shopUrl}/tma?shopId=${shopId}`
 
-        await ctx.reply('Welcome to our shop! 🛍️\nClick the button below to browse our catalog.', {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: 'Open Shop 🏪',
-                            web_app: { url: miniAppUrl }
-                        }
+        try {
+            await ctx.reply('Welcome to our shop! 🛍️\nClick the button below to browse our catalog.', {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: 'Open Shop 🏪',
+                                web_app: { url: miniAppUrl }
+                            }
+                        ]
                     ]
-                ]
-            }
-        })
+                }
+            })
+            console.log(`[Bot] /start reply sent to ${ctx.from.id}`);
+        } catch (e) {
+            console.error(`[Bot] Failed to send /start reply:`, e);
+        }
     })
 
     bot.help((ctx) => ctx.reply('Contact support if you need help!'))
