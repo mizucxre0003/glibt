@@ -350,8 +350,36 @@ export default function ProductsPage() {
         }
     }
 
-    const handleExport = () => {
-        window.open('/api/products/import-export', '_blank')
+    const [exporting, setExporting] = useState(false)
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+
+    const handleExport = async () => {
+        setExporting(true)
+        const token = localStorage.getItem('token')
+        try {
+            const res = await fetch('/api/products/import-export', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (!res.ok) throw new Error("Export failed")
+
+            const blob = await res.blob()
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = "products.xlsx"
+            document.body.appendChild(a)
+            a.click()
+            a.remove()
+        } catch (e) {
+            console.error(e)
+            alert("Export failed. Please try again.")
+        } finally {
+            setExporting(false)
+        }
     }
 
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -374,6 +402,7 @@ export default function ProductsPage() {
                 const data = await res.json()
                 alert(`Imported ${data.count} products successfully!`)
                 fetchData()
+                setIsImportDialogOpen(false)
             } else {
                 const err = await res.json()
                 alert(`Import failed: ${err.error}`)
@@ -383,7 +412,6 @@ export default function ProductsPage() {
             alert("Import failed with an unexpected error.")
         } finally {
             setImporting(false)
-            // Reset input
             e.target.value = ''
         }
     }
@@ -434,23 +462,52 @@ export default function ProductsPage() {
                     )}
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleExport}>
-                        <Download className="mr-2 h-4 w-4" />
+                    <Button variant="outline" onClick={handleExport} disabled={exporting}>
+                        {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                         Export XLSX
                     </Button>
-                    <div className="relative">
-                        <Button variant="outline" disabled={importing}>
-                            {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                            Import XLSX
-                        </Button>
-                        <input
-                            type="file"
-                            accept=".xlsx, .xls"
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            onChange={handleImport}
-                            disabled={importing}
-                        />
-                    </div>
+
+                    <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">
+                                <Upload className="mr-2 h-4 w-4" />
+                                Import XLSX
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Import Products from Excel</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Please upload an .xlsx file with the following columns:
+                                </p>
+                                <ul className="list-disc list-inside text-sm font-mono bg-muted p-2 rounded">
+                                    <li>Name (Required)</li>
+                                    <li>Price (Required, Number)</li>
+                                    <li>Description (Optional)</li>
+                                    <li>Category (Optional, Name)</li>
+                                    <li>ImageURL (Optional, URL)</li>
+                                </ul>
+                                <div className="space-y-2">
+                                    <Label>Select File</Label>
+                                    <div className="relative">
+                                        <Button variant="secondary" className="w-full relative cursor-pointer" disabled={importing}>
+                                            {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                            {importing ? "Importing..." : "Choose File"}
+                                        </Button>
+                                        <input
+                                            type="file"
+                                            accept=".xlsx, .xls"
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            onChange={handleImport}
+                                            disabled={importing}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                     <Dialog open={isQuickAddOpen} onOpenChange={setIsQuickAddOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline">

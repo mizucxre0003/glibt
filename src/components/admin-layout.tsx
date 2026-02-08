@@ -43,11 +43,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const navigation = [
         { name: t('nav.dashboard'), href: '/admin/dashboard' },
+        { name: t('nav.orders'), href: '/admin/orders' },
+        { name: t('nav.marketing'), href: '/admin/marketing' },
+        { name: t('nav.botConfig'), href: '/admin/bot-config' },
         { name: t('nav.products'), href: '/admin/products' },
         { name: t('nav.categories'), href: '/admin/categories' },
-        { name: t('nav.orders'), href: '/admin/orders' },
-        { name: t('nav.botConfig'), href: '/admin/bot-config' },
-        { name: t('nav.marketing'), href: '/admin/marketing' },
         { name: t('nav.settings') || "Settings", href: '/admin/settings' },
     ]
 
