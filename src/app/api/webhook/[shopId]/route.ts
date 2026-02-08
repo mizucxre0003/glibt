@@ -3,36 +3,79 @@ import { Telegraf } from 'telegraf'
 import prisma from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
 
-// 3. Initialize Bot Instance
-// We do NOT cache the bot instance globally anymore.
-// Caching caused 'ECONNRESET' errors due to stale connections in the HTTP agent.
-// Creating a new instance per request is lightweight and safer for serverless webhooks.
-let bot: Telegraf
-try {
-    const botToken = decrypt(shop.botToken)
-    bot = new Telegraf(botToken)
-    setupBotLogic(bot, shopId)
-} catch (error) {
-    console.error(`[Webhook] Failed to initialize bot for shop ${shopId}`, error)
-    return NextResponse.json({ ok: true })
-}
+export async function POST(
+    request: Request,
+    { params }: { params: { shopId: string } }
+) {
+    const { shopId } = params
 
-// 4. Process the Update
-try {
-    await bot.handleUpdate(update)
-} catch (botError) {
-    console.error(`[Webhook] Telegraf error for shop ${shopId}:`, botError)
-    // Swallow error to keep Telegram happy (retrying won't fix code bugs)
-}
+    try {
+        const update = await request.json()
+        // console.log(`[Webhook] Received update for shop: ${shopId}`) // verbose logging
 
-// 5. Return 200 OK
-return NextResponse.json({ ok: true })
+        // 1. Validate Shop ID exists
+        if (!shopId) {
+            console.error('[Webhook] Missing shopId')
+            return NextResponse.json({ error: 'Missing shopId' }, { status: 400 })
+        }
+
+        // 2. Fetch Shop from Database
+        // We fetch minimal data to check status and get token
+        const shop = await prisma.shop.findUnique({
+            where: { id: shopId },
+            select: {
+                botToken: true,
+                isActive: true,
+                isBanned: true
+            }
+        })
+
+        if (!shop) {
+            console.error(`[Webhook] Shop not found: ${shopId}`)
+            return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+        }
+
+        if (shop.isBanned) {
+            console.warn(`[Webhook] Shop is banned: ${shopId}`)
+            return NextResponse.json({ error: 'Shop is banned' }, { status: 403 })
+        }
+
+        if (!shop.isActive) {
+            return NextResponse.json({ message: 'Shop is inactive' })
+        }
+
+        // 3. Initialize Bot Instance
+        // We do NOT cache the bot instance globally anymore.
+        // Caching caused 'ECONNRESET' errors due to stale connections in the HTTP agent.
+        // Creating a new instance per request is lightweight and safer for serverless webhooks.
+        let bot: Telegraf
+        try {
+            const botToken = decrypt(shop.botToken)
+            bot = new Telegraf(botToken)
+
+            // Setup bot logic (commands, etc.)
+            setupBotLogic(bot, shopId)
+        } catch (error) {
+            console.error(`[Webhook] Failed to initialize bot for shop ${shopId}`, error)
+            return NextResponse.json({ ok: true })
+        }
+
+        // 4. Process the Update
+        try {
+            await bot.handleUpdate(update)
+        } catch (botError) {
+            console.error(`[Webhook] Telegraf error for shop ${shopId}:`, botError)
+            // Swallow error to keep Telegram happy (retrying won't fix code bugs)
+        }
+
+        // 5. Return 200 OK
+        return NextResponse.json({ ok: true })
 
     } catch (error) {
-    console.error(`[Webhook] Critical error processing update for shop ${shopId}:`, error)
-    // Always return 200 to Telegram to prevent infinite retry loops on their side
-    return NextResponse.json({ ok: true })
-}
+        console.error(`[Webhook] Critical error processing update for shop ${shopId}:`, error)
+        // Always return 200 to Telegram to prevent infinite retry loops on their side
+        return NextResponse.json({ ok: true })
+    }
 }
 
 function setupBotLogic(bot: Telegraf, shopId: string) {
