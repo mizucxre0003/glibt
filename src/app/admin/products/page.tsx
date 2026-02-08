@@ -146,7 +146,7 @@ export default function ProductsPage() {
             // Clean values
             const payload = {
                 ...values,
-                categoryId: values.categoryId === "none" ? null : values.categoryId || null
+                categoryId: values.categoryId === "none" ? undefined : values.categoryId || undefined
             }
 
             const res = await fetch(url, {
@@ -163,9 +163,14 @@ export default function ProductsPage() {
                 fetchData()
                 form.reset()
                 setEditingProduct(null)
+            } else {
+                const err = await res.json()
+                console.error("API Error:", err)
+                alert(`Error: ${JSON.stringify(err.error || err)}`)
             }
         } catch (e) {
             console.error(e)
+            alert("An unexpected error occurred.")
         } finally {
             setSaving(false)
         }

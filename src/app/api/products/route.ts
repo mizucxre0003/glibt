@@ -8,7 +8,7 @@ const productCreateSchema = z.object({
     description: z.string().optional(),
     price: z.coerce.number().min(0),
     imageUrl: z.string().optional(),
-    categoryId: z.string().optional(),
+    categoryId: z.string().optional().nullable(),
     isActive: z.boolean().default(true)
 })
 
