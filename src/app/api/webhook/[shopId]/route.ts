@@ -86,7 +86,7 @@ function setupBotLogic(bot: Telegraf, shopId: string) {
     // /start command
     bot.start(async (ctx) => {
         const shopUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://koyeb-app-url.com'
-        const miniAppUrl = `${shopUrl}/tma`
+        const miniAppUrl = `${shopUrl}/tma?shopId=${shopId}`
 
         await ctx.reply('Welcome to our shop! 🛍️\nClick the button below to browse our catalog.', {
             reply_markup: {

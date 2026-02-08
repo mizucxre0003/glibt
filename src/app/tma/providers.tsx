@@ -119,6 +119,13 @@ export function TMAProvider({ children }: { children: ReactNode }) {
             const urlParams = new URLSearchParams(window.location.search)
             const queryShopId = urlParams.get('shopId')
 
+            if (!startParam && !queryShopId) {
+                console.error("No shopId found in URL or startParam")
+                // Don't set shop to null (it's already null), just stop loading
+                setShopLoading(false)
+                return
+            }
+
             if (startParam) {
                 url += `?id=${startParam}`
             } else if (queryShopId) {
@@ -130,6 +137,8 @@ export function TMAProvider({ children }: { children: ReactNode }) {
                 if (res.ok) {
                     const data = await res.json()
                     setShop(data)
+                } else {
+                    console.error("Shop fetch failed:", res.status, await res.text())
                 }
             } catch (e) {
                 console.error("Failed to fetch shop", e)
