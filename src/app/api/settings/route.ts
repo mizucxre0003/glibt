@@ -5,7 +5,7 @@ import { getAuthUser } from '@/lib/auth-helper'
 
 const settingsSchema = z.object({
     currency: z.string().min(1).max(10),
-    primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color code").optional().default("#000000"),
+    primaryColor: z.string().optional().default("#000000"), // Relaxed validation for debugging
     welcomeMessage: z.string().optional(),
 })
 

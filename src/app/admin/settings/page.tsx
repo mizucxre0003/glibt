@@ -26,7 +26,7 @@ import {
 
 const settingsSchema = z.object({
     currency: z.string().min(1, "Currency is required"),
-    primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color code").optional(),
+    primaryColor: z.string().optional(),
     welcomeMessage: z.string().optional(),
 })
 

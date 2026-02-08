@@ -23,19 +23,7 @@ export async function GET(request: Request) {
                 }
             })
         } else {
-            // Fallback: Fetch the first active shop (Demo mode / Single tenant)
-            shop = await prisma.shop.findFirst({
-                where: { isActive: true },
-                select: {
-                    id: true,
-                    name: true,
-                    currency: true,
-                    primaryColor: true,
-                    welcomeMessage: true,
-                    botUsername: true,
-                    isBanned: true
-                }
-            })
+            return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
         }
 
         if (!shop) {
