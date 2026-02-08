@@ -37,6 +37,7 @@ model Shop {
   // Branding
   primaryColor  String   @default("#000000")
   welcomeMessage String?
+  currency      String   @default("USD")
 
   products      Product[]
   categories    Category[]
@@ -81,7 +82,6 @@ model Product {
   description String?
   price       Decimal
   oldPrice    Decimal?
-  stock       Int      @default(0)
   images      String[] // URLs
   isActive    Boolean  @default(true)
   isPreorder  Boolean  @default(false)

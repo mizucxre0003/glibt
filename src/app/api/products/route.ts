@@ -7,7 +7,6 @@ const productCreateSchema = z.object({
     name: z.string().min(1, "Name is required"),
     description: z.string().optional(),
     price: z.coerce.number().min(0),
-    stock: z.coerce.number().int().min(0).default(0),
     imageUrl: z.string().optional(),
     categoryId: z.string().optional(),
     isActive: z.boolean().default(true)
@@ -60,7 +59,6 @@ export async function POST(request: Request) {
                 name: data.name,
                 description: data.description,
                 price: data.price,
-                stock: data.stock,
                 images: data.imageUrl ? [data.imageUrl] : [],
                 isActive: data.isActive,
                 category: data.categoryId ? { connect: { id: data.categoryId } } : undefined,

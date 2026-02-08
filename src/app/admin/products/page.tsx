@@ -52,7 +52,6 @@ const productSchema = z.object({
     name: z.string().min(1, "Name is required"),
     description: z.string().optional(),
     price: z.coerce.number().min(0),
-    stock: z.coerce.number().int().min(0),
     categoryId: z.string().optional(),
     imageUrl: z.string().optional(),
 })
@@ -61,6 +60,7 @@ export default function ProductsPage() {
     const { t } = useLanguage()
     const [products, setProducts] = useState<any[]>([])
     const [categories, setCategories] = useState<any[]>([])
+    const [currency, setCurrency] = useState("USD")
     const [loading, setLoading] = useState(true)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<any>(null)
@@ -73,7 +73,6 @@ export default function ProductsPage() {
             name: "",
             description: "",
             price: 0,
-            stock: 0,
             categoryId: undefined,
             imageUrl: ""
         }
@@ -82,13 +81,18 @@ export default function ProductsPage() {
     const fetchData = async () => {
         const token = localStorage.getItem('token')
         try {
-            const [prodRes, catRes] = await Promise.all([
+            const [prodRes, catRes, settingsRes] = await Promise.all([
                 fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('/api/categories', { headers: { 'Authorization': `Bearer ${token}` } })
+                fetch('/api/categories', { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch('/api/settings', { headers: { 'Authorization': `Bearer ${token}` } })
             ])
 
             if (prodRes.ok) setProducts(await prodRes.json())
             if (catRes.ok) setCategories(await catRes.json())
+            if (settingsRes.ok) {
+                const settings = await settingsRes.json()
+                setCurrency(settings.currency || "USD")
+            }
         } catch (e) {
             console.error(e)
         } finally {
@@ -173,9 +177,8 @@ export default function ProductsPage() {
             name: product.name,
             description: product.description || "",
             price: Number(product.price),
-            stock: product.stock,
             categoryId: product.categoryId || undefined,
-            imageUrl: product.images?.[0] || product.imageUrl || "" // Handle array or string if schema varies
+            imageUrl: product.images?.[0] || product.imageUrl || ""
         })
         setIsDialogOpen(true)
     }
@@ -186,7 +189,6 @@ export default function ProductsPage() {
             name: "",
             description: "",
             price: 0,
-            stock: 0,
             categoryId: undefined,
             imageUrl: ""
         })
@@ -227,14 +229,13 @@ export default function ProductsPage() {
                                 <TableHead>{t('products.name')}</TableHead>
                                 <TableHead>{t('products.category')}</TableHead>
                                 <TableHead>{t('products.price')}</TableHead>
-                                <TableHead>{t('products.stock')}</TableHead>
                                 <TableHead className="w-[100px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {products.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-6 text-gray-500">
+                                    <TableCell colSpan={5} className="text-center py-6 text-gray-500">
                                         {t('products.empty')}
                                     </TableCell>
                                 </TableRow>
@@ -256,11 +257,8 @@ export default function ProductsPage() {
                                         </TableCell>
                                         <TableCell className="font-medium">{prod.name}</TableCell>
                                         <TableCell>{prod.category?.name || "-"}</TableCell>
-                                        <TableCell>{Number(prod.price).toFixed(2)}</TableCell>
                                         <TableCell>
-                                            <span className={prod.stock === 0 ? "text-red-500" : ""}>
-                                                {prod.stock}
-                                            </span>
+                                            {Number(prod.price).toFixed(2)} {currency}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
@@ -337,33 +335,28 @@ export default function ProductsPage() {
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
-                                        <Label htmlFor="price">{t('products.price')}</Label>
+                                        <Label htmlFor="price">{t('products.price')} ({currency})</Label>
                                         <Input id="price" type="number" step="0.01" {...form.register("price")} />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor="stock">{t('products.stock')}</Label>
-                                        <Input id="stock" type="number" {...form.register("stock")} />
+                                        <Label htmlFor="category">{t('products.category')}</Label>
+                                        {form.watch() && (
+                                            <Select
+                                                onValueChange={(val) => form.setValue("categoryId", val)}
+                                                value={form.watch("categoryId") || "none"}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select Category" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">No Category</SelectItem>
+                                                    {categories.map(c => (
+                                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
                                     </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <Label htmlFor="category">{t('products.category')}</Label>
-                                    {form.watch() && ( // Re-render trick if needed, usually Controller is better but native Select works with fetch
-                                        <Select
-                                            onValueChange={(val) => form.setValue("categoryId", val)}
-                                            value={form.watch("categoryId") || "none"}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select Category" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">No Category</SelectItem>
-                                                {categories.map(c => (
-                                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
                                 </div>
                             </div>
                         </div>
