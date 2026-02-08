@@ -55,7 +55,7 @@ const productSchema = z.object({
     description: z.string().optional(),
     price: z.coerce.number().min(0, "Price must be positive"),
     categoryId: z.string().optional(),
-    imageUrl: z.string().optional(),
+    images: z.array(z.string()).optional(),
 })
 
 type ProductFormValues = z.infer<typeof productSchema>
@@ -84,7 +84,7 @@ export default function ProductsPage() {
     const [loading, setLoading] = useState(true)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-    const [imageUrl, setImageUrl] = useState<string>("")
+    const [images, setImages] = useState<string[]>([])
     const [uploading, setUploading] = useState(false)
     const [saving, setSaving] = useState(false)
     const [currency, setCurrency] = useState("USD")
@@ -95,7 +95,7 @@ export default function ProductsPage() {
             name: "",
             description: "",
             price: 0,
-            imageUrl: "",
+            images: [],
         }
     })
     const [importing, setImporting] = useState(false)
@@ -139,26 +139,30 @@ export default function ProductsPage() {
 
     const startCreate = () => {
         setEditingProduct(null)
-        setImageUrl("")
+        setImages([])
         form.reset({
             name: "",
             description: "",
             price: 0,
             categoryId: "none",
-            imageUrl: ""
+            images: []
         })
         setIsDialogOpen(true)
     }
 
     const startEdit = (product: Product) => {
+        const productImages = product.images && product.images.length > 0
+            ? product.images
+            : product.imageUrl ? [product.imageUrl] : []
+
         setEditingProduct(product)
-        setImageUrl(product.images?.[0] || product.imageUrl || "")
+        setImages(productImages)
         form.reset({
             name: product.name,
             description: product.description || "",
             price: Number(product.price),
             categoryId: product.categoryId || "none",
-            imageUrl: product.images?.[0] || product.imageUrl || ""
+            images: productImages
         })
         setIsDialogOpen(true)
     }
@@ -195,14 +199,22 @@ export default function ProductsPage() {
 
             if (res.ok) {
                 const data = await res.json()
-                setImageUrl(data.url)
-                form.setValue("imageUrl", data.url)
+                const newImages = [...images, data.url]
+                setImages(newImages)
+                form.setValue("images", newImages)
             }
         } catch (e) {
             console.error(e)
         } finally {
             setUploading(false)
+            e.target.value = '' // Reset input
         }
+    }
+
+    const removeImage = (index: number) => {
+        const newImages = images.filter((_, i) => i !== index)
+        setImages(newImages)
+        form.setValue("images", newImages)
     }
 
     const onSubmit = async (data: ProductFormValues) => {
@@ -658,26 +670,35 @@ export default function ProductsPage() {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <div className="flex gap-4">
                             {/* Image Upload Area */}
-                            <div className="flex-shrink-0">
+                            <div className="flex-shrink-0 w-full md:w-auto">
                                 <Label className="mb-2 block">{t('products.image')}</Label>
-                                <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg p-2 w-32 h-32 flex flex-col items-center justify-center relative hover:bg-zinc-50 dark:hover:bg-zinc-900 transition cursor-pointer">
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="absolute inset-0 opacity-0 cursor-pointer"
-                                        onChange={handleImageUpload}
-                                        disabled={uploading}
-                                    />
-                                    {uploading ? (
-                                        <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-                                    ) : imageUrl ? (
-                                        <img src={imageUrl} alt="Preview" className="w-full h-full object-cover rounded-md" />
-                                    ) : (
-                                        <>
-                                            <ImagePlus className="h-8 w-8 text-zinc-400 mb-2" />
-                                            <span className="text-xs text-center text-zinc-500">{t('products.uploadImage')}</span>
-                                        </>
-                                    )}
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                    {images.map((img, idx) => (
+                                        <div key={idx} className="relative w-20 h-20 group">
+                                            <img src={img} alt={`Product ${idx}`} className="w-full h-full object-cover rounded-md border" />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeImage(idx)}
+                                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition"
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg w-20 h-20 flex flex-col items-center justify-center relative hover:bg-zinc-50 dark:hover:bg-zinc-900 transition cursor-pointer">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            onChange={handleImageUpload}
+                                            disabled={uploading}
+                                        />
+                                        {uploading ? (
+                                            <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+                                        ) : (
+                                            <Plus className="h-6 w-6 text-zinc-400" />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

@@ -7,7 +7,7 @@ const productUpdateSchema = z.object({
     name: z.string().min(1).optional(),
     description: z.string().optional(),
     price: z.coerce.number().min(0).optional(),
-    imageUrl: z.string().optional(),
+    images: z.array(z.string()).optional(),
     categoryId: z.string().optional().nullable(),
     isActive: z.boolean().optional()
 })
@@ -51,7 +51,7 @@ export async function PUT(
                 name: data.name,
                 description: data.description,
                 price: data.price,
-                images: data.imageUrl ? [data.imageUrl] : undefined,
+                images: data.images,
                 isActive: data.isActive,
                 category: data.categoryId ? { connect: { id: data.categoryId } } : data.categoryId === null ? { disconnect: true } : undefined
             }

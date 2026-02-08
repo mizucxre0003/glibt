@@ -114,8 +114,11 @@ export default function CatalogPage() {
                 ) : (
                     filteredProducts.map(product => (
                         <div key={product.id} className="bg-card rounded-xl overflow-hidden shadow-sm border border-border flex flex-col">
-                            <div className="aspect-square bg-muted relative">
-                                {product.images[0] ? (
+                            <div
+                                className="aspect-square bg-muted relative cursor-pointer"
+                                onClick={() => router.push(`/tma/product/${product.id}`)}
+                            >
+                                {product.images?.[0] ? (
                                     <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-gray-100">
@@ -123,7 +126,7 @@ export default function CatalogPage() {
                                     </div>
                                 )}
                                 {getItemQty(product.id) > 0 && (
-                                    <div className="absolute top-2 right-2 bg-black/70 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
+                                    <div className="absolute top-2 right-2 bg-black/70 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-sm">
                                         {getItemQty(product.id)}
                                     </div>
                                 )}
