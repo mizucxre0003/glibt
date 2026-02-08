@@ -114,8 +114,15 @@ export function TMAProvider({ children }: { children: ReactNode }) {
 
             // If no startParam, we might fail or try to fetch the first shop (for demo)
             let url = `/api/shop/public` // We need to create this!
+
+            // Check URL query params for shopId (from Menu Button)
+            const urlParams = new URLSearchParams(window.location.search)
+            const queryShopId = urlParams.get('shopId')
+
             if (startParam) {
                 url += `?id=${startParam}`
+            } else if (queryShopId) {
+                url += `?id=${queryShopId}`
             }
 
             try {

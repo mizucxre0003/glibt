@@ -38,6 +38,22 @@ export async function POST(request: Request) {
             }
         }
 
+        // Set Menu Button
+        try {
+            const tmaUrl = `${appUrl}/tma?shopId=${shop.id}`
+            // @ts-ignore
+            await (bot.telegram as any).call('setChatMenuButton', {
+                menu_button: {
+                    type: 'web_app',
+                    text: 'Open Shop 🛍️',
+                    web_app: { url: tmaUrl }
+                }
+            })
+        } catch (e: any) {
+            console.error("Menu Button set failed:", e.message)
+            // Non-critical error, don't fail the whole request
+        }
+
         const botInfo = await bot.telegram.getMe()
 
         // Update shop status
