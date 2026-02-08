@@ -4,8 +4,9 @@ import prisma from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth-helper'
 
 const settingsSchema = z.object({
-    currency: z.string().min(1).max(10), // e.g. "USD", "KZT"
-    // Future settings can go here
+    currency: z.string().min(1).max(10),
+    primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color code").optional().default("#000000"),
+    welcomeMessage: z.string().optional(),
 })
 
 export async function GET(request: Request) {
@@ -44,7 +45,9 @@ export async function PUT(request: Request) {
         const shop = await prisma.shop.update({
             where: { id: user.shopId },
             data: {
-                currency: data.currency
+                currency: data.currency,
+                primaryColor: data.primaryColor,
+                welcomeMessage: data.welcomeMessage
             }
         })
 

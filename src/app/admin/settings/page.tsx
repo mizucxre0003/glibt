@@ -26,6 +26,8 @@ import {
 
 const settingsSchema = z.object({
     currency: z.string().min(1, "Currency is required"),
+    primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color code").optional(),
+    welcomeMessage: z.string().optional(),
 })
 
 export default function SettingsPage() {
@@ -38,6 +40,8 @@ export default function SettingsPage() {
         resolver: zodResolver(settingsSchema),
         defaultValues: {
             currency: "USD",
+            primaryColor: "#000000",
+            welcomeMessage: ""
         }
     })
 
@@ -50,6 +54,8 @@ export default function SettingsPage() {
             if (res.ok) {
                 const data = await res.json()
                 form.setValue('currency', data.currency || "USD")
+                form.setValue('primaryColor', data.primaryColor || "#000000")
+                form.setValue('welcomeMessage', data.welcomeMessage || "")
 
                 // Check if currency is standard
                 const standards = ["USD", "EUR", "RUB", "KZT", "UAH"]
@@ -156,6 +162,36 @@ export default function SettingsPage() {
                             )}
                             <p className="text-sm text-gray-500">
                                 This currency symbol will be displayed next to all product prices.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Primary Color</Label>
+                            <div className="flex gap-4 items-center">
+                                <Input
+                                    type="color"
+                                    {...form.register("primaryColor")}
+                                    className="w-16 h-10 p-1 cursor-pointer"
+                                />
+                                <Input
+                                    {...form.register("primaryColor")}
+                                    placeholder="#000000"
+                                    className="font-mono max-w-[120px]"
+                                />
+                            </div>
+                            <p className="text-sm text-gray-500">
+                                The main accent color for your Mini App.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Welcome Message</Label>
+                            <Input
+                                {...form.register("welcomeMessage")}
+                                placeholder="Welcome to our shop!"
+                            />
+                            <p className="text-sm text-gray-500">
+                                Displayed at the top of the product catalog.
                             </p>
                         </div>
 
