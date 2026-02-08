@@ -275,7 +275,6 @@ export default function OrdersPage() {
                                     </Select>
                                 </div>
                             </div>
-                            </div>
                             <div>
                                 <h3 className="font-semibold mb-4">Items</h3>
                                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
@@ -306,8 +305,8 @@ export default function OrdersPage() {
                                             placeholder="Type your message here..."
                                             id="message-input"
                                         />
-                                        <Button 
-                                            size="sm" 
+                                        <Button
+                                            size="sm"
                                             onClick={async (e) => {
                                                 const btn = e.currentTarget
                                                 const input = document.getElementById('message-input') as HTMLTextAreaElement
@@ -316,7 +315,7 @@ export default function OrdersPage() {
 
                                                 btn.disabled = true
                                                 btn.innerText = "Sending..."
-                                                
+
                                                 const token = localStorage.getItem('token')
                                                 try {
                                                     const res = await fetch(`/api/orders/${selectedOrder.id}/message`, {
@@ -327,7 +326,7 @@ export default function OrdersPage() {
                                                         },
                                                         body: JSON.stringify({ message })
                                                     })
-                                                    
+
                                                     if (res.ok) {
                                                         alert("Message sent!")
                                                         input.value = ""
@@ -350,8 +349,8 @@ export default function OrdersPage() {
                             </div>
                         </div>
                     )}
-            </DialogContent>
-        </Dialog>
+                </DialogContent>
+            </Dialog>
         </div >
     )
 }
