@@ -5,6 +5,7 @@ import { getAuthUser } from '@/lib/auth-helper'
 
 const categoryCreateSchema = z.object({
     name: z.string().min(1, "Name is required"),
+    productIds: z.array(z.string()).optional()
 })
 
 export async function GET(request: Request) {
@@ -19,6 +20,9 @@ export async function GET(request: Request) {
             include: {
                 _count: {
                     select: { products: true }
+                },
+                products: {
+                    select: { id: true, name: true }
                 }
             },
             orderBy: { createdAt: 'desc' }
@@ -39,12 +43,15 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json()
-        const { name } = categoryCreateSchema.parse(body)
+        const { name, productIds } = categoryCreateSchema.parse(body)
 
         const category = await prisma.category.create({
             data: {
                 name,
-                shopId: user.shopId!
+                shopId: user.shopId!,
+                products: productIds && productIds.length > 0 ? {
+                    connect: productIds.map(id => ({ id }))
+                } : undefined
             }
         })
 

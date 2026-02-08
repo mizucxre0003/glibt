@@ -5,6 +5,7 @@ import { getAuthUser } from '@/lib/auth-helper'
 
 const categoryUpdateSchema = z.object({
     name: z.string().min(1, "Name is required"),
+    productIds: z.array(z.string()).optional()
 })
 
 export async function PUT(
@@ -19,7 +20,7 @@ export async function PUT(
 
         const { id } = params
         const body = await request.json()
-        const { name } = categoryUpdateSchema.parse(body)
+        const { name, productIds } = categoryUpdateSchema.parse(body)
 
         // Verify ownership
         const existing = await prisma.category.findFirst({
@@ -32,7 +33,12 @@ export async function PUT(
 
         const category = await prisma.category.update({
             where: { id },
-            data: { name }
+            data: {
+                name,
+                products: productIds ? {
+                    set: productIds.map(pid => ({ id: pid }))
+                } : undefined
+            }
         })
 
         return NextResponse.json(category)

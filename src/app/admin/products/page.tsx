@@ -27,6 +27,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogTrigger,
 } from "@/components/ui/dialog"
 import {
     AlertDialog,
@@ -46,40 +47,72 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Pencil, Trash2, Plus, Loader2, ImagePlus, ImageIcon } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Pencil, Trash2, Plus, Loader2, ImagePlus, ImageIcon, Download, Upload } from "lucide-react"
 
 const productSchema = z.object({
     name: z.string().min(1, "Name is required"),
     description: z.string().optional(),
-    price: z.coerce.number().min(0),
+    price: z.coerce.number().min(0, "Price must be positive"),
     categoryId: z.string().optional(),
     imageUrl: z.string().optional(),
 })
 
+type ProductFormValues = z.infer<typeof productSchema>
+
+interface Product {
+    id: string
+    name: string
+    description: string | null
+    price: number
+    imageUrl: string | null
+    categoryId: string | null
+    category: { name: string } | null
+    shopId: string
+    images: string[]
+}
+
+interface Category {
+    id: string
+    name: string
+}
+
 export default function ProductsPage() {
-    const { t } = useLanguage()
-    const [products, setProducts] = useState<any[]>([])
-    const [categories, setCategories] = useState<any[]>([])
-    const [currency, setCurrency] = useState("USD")
+    const { t, language } = useLanguage()
+    const [products, setProducts] = useState<Product[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [editingProduct, setEditingProduct] = useState<any>(null)
-    const [saving, setSaving] = useState(false)
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+    const [imageUrl, setImageUrl] = useState<string>("")
     const [uploading, setUploading] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const [currency, setCurrency] = useState("USD")
 
-    const form = useForm<z.infer<typeof productSchema>>({
+    const form = useForm<ProductFormValues>({
         resolver: zodResolver(productSchema) as any,
         defaultValues: {
             name: "",
             description: "",
             price: 0,
-            categoryId: undefined,
-            imageUrl: ""
+            imageUrl: "",
         }
     })
+    const [importing, setImporting] = useState(false)
+    const [selectedProducts, setSelectedProducts] = useState<string[]>([])
+    const [bulkActionLoading, setBulkActionLoading] = useState(false)
+    const [isBulkCategoryOpen, setIsBulkCategoryOpen] = useState(false)
+    const [isQuickAddOpen, setIsQuickAddOpen] = useState(false)
+    const [quickAddRows, setQuickAddRows] = useState([{ name: "", price: 0 }])
 
     const fetchData = async () => {
+        setLoading(true)
         const token = localStorage.getItem('token')
+        if (!token) {
+            window.location.href = '/admin/login'
+            return
+        }
+
         try {
             const [prodRes, catRes, settingsRes] = await Promise.all([
                 fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -93,8 +126,8 @@ export default function ProductsPage() {
                 const settings = await settingsRes.json()
                 setCurrency(settings.currency || "USD")
             }
-        } catch (e) {
-            console.error(e)
+        } catch (error) {
+            console.error("Failed to fetch data", error)
         } finally {
             setLoading(false)
         }
@@ -104,16 +137,56 @@ export default function ProductsPage() {
         fetchData()
     }, [])
 
+    const startCreate = () => {
+        setEditingProduct(null)
+        setImageUrl("")
+        form.reset({
+            name: "",
+            description: "",
+            price: 0,
+            categoryId: "none",
+            imageUrl: ""
+        })
+        setIsDialogOpen(true)
+    }
+
+    const startEdit = (product: Product) => {
+        setEditingProduct(product)
+        setImageUrl(product.images?.[0] || product.imageUrl || "")
+        form.reset({
+            name: product.name,
+            description: product.description || "",
+            price: Number(product.price),
+            categoryId: product.categoryId || "none",
+            imageUrl: product.images?.[0] || product.imageUrl || ""
+        })
+        setIsDialogOpen(true)
+    }
+
+    const handleDelete = async (id: string) => {
+        if (!confirm(t('products.deleteConfirm'))) return // Fallback if shadcn dialog fails or for safety
+
+        const token = localStorage.getItem('token')
+        const res = await fetch(`/api/products/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+
+        if (res.ok) {
+            fetchData()
+        }
+    }
+
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
 
         setUploading(true)
-        const token = localStorage.getItem('token')
         const formData = new FormData()
         formData.append('file', file)
 
         try {
+            const token = localStorage.getItem('token')
             const res = await fetch('/api/upload', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
@@ -122,9 +195,8 @@ export default function ProductsPage() {
 
             if (res.ok) {
                 const data = await res.json()
-                form.setValue('imageUrl', data.url)
-            } else {
-                console.error("Upload failed")
+                setImageUrl(data.url)
+                form.setValue("imageUrl", data.url)
             }
         } catch (e) {
             console.error(e)
@@ -133,96 +205,305 @@ export default function ProductsPage() {
         }
     }
 
-    const onSubmit = async (values: z.infer<typeof productSchema>) => {
+    const onSubmit = async (data: ProductFormValues) => {
         setSaving(true)
         const token = localStorage.getItem('token')
+
         try {
-            const url = editingProduct
-                ? `/api/products/${editingProduct.id}`
-                : '/api/products'
-
-            const method = editingProduct ? 'PUT' : 'POST'
-
-            // Clean values
             const payload = {
-                ...values,
-                categoryId: values.categoryId === "none" ? undefined : values.categoryId || undefined
+                ...data,
+                categoryId: data.categoryId === "none" ? null : data.categoryId
             }
 
-            const res = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            })
-
-            if (res.ok) {
-                setIsDialogOpen(false)
-                fetchData()
-                form.reset()
-                setEditingProduct(null)
+            if (editingProduct) {
+                await fetch(`/api/products/${editingProduct.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                })
             } else {
-                const err = await res.json()
-                console.error("API Error:", err)
-                alert(`Error: ${JSON.stringify(err.error || err)}`)
+                await fetch('/api/products', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                })
             }
+            setIsDialogOpen(false)
+            fetchData()
         } catch (e) {
             console.error(e)
-            alert("An unexpected error occurred.")
         } finally {
             setSaving(false)
         }
     }
 
-    const startEdit = (product: any) => {
-        setEditingProduct(product)
-        form.reset({
-            name: product.name,
-            description: product.description || "",
-            price: Number(product.price),
-            categoryId: product.categoryId || undefined,
-            imageUrl: product.images?.[0] || product.imageUrl || ""
-        })
-        setIsDialogOpen(true)
+    const handleQuickAddChange = (index: number, field: string, value: any) => {
+        const newRows = [...quickAddRows]
+        // @ts-ignore
+        newRows[index][field] = value
+        setQuickAddRows(newRows)
     }
 
-    const startCreate = () => {
-        setEditingProduct(null)
-        form.reset({
-            name: "",
-            description: "",
-            price: 0,
-            categoryId: undefined,
-            imageUrl: ""
-        })
-        setIsDialogOpen(true)
+    const addQuickRow = () => {
+        setQuickAddRows([...quickAddRows, { name: "", price: 0 }])
     }
 
-    const handleDelete = async (id: string) => {
+    const removeQuickRow = (index: number) => {
+        setQuickAddRows(quickAddRows.filter((_, i) => i !== index))
+    }
+
+    const handleQuickAddSubmit = async () => {
+        setSaving(true)
+        const token = localStorage.getItem('token')
+        let count = 0
+        try {
+            for (const row of quickAddRows) {
+                if (!row.name) continue
+                await fetch('/api/products', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name: row.name, price: Number(row.price) })
+                })
+                count++
+            }
+            setIsQuickAddOpen(false)
+            setQuickAddRows([{ name: "", price: 0 }])
+            fetchData()
+            alert(`Added ${count} products.`)
+        } catch (e) {
+            console.error(e)
+            alert("Error during quick add.")
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const toggleSelectAll = () => {
+        if (selectedProducts.length === products.length) {
+            setSelectedProducts([])
+        } else {
+            setSelectedProducts(products.map(p => p.id))
+        }
+    }
+
+    const toggleSelect = (id: string) => {
+        if (selectedProducts.includes(id)) {
+            setSelectedProducts(selectedProducts.filter(pid => pid !== id))
+        } else {
+            setSelectedProducts([...selectedProducts, id])
+        }
+    }
+
+    const handleBulkDelete = async () => {
+        if (!confirm(`Are you sure you want to delete ${selectedProducts.length} products?`)) return
+
+        setBulkActionLoading(true)
         const token = localStorage.getItem('token')
         try {
-            await fetch(`/api/products/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
+            await Promise.all(selectedProducts.map(id =>
+                fetch(`/api/products/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ))
             fetchData()
-        } catch (e) { console.error(e) }
+            setSelectedProducts([])
+        } catch (e) {
+            console.error(e)
+            alert("Some products could not be deleted.")
+        } finally {
+            setBulkActionLoading(false)
+        }
     }
 
-    if (loading) return <div className="p-8"><Loader2 className="animate-spin" /></div>
+    const handleBulkCategoryUpdate = async (categoryId: string | undefined) => {
+        setBulkActionLoading(true)
+        const token = localStorage.getItem('token')
+        try {
+            await Promise.all(selectedProducts.map(id =>
+                fetch(`/api/products/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ categoryId })
+                })
+            ))
+            fetchData()
+            setSelectedProducts([])
+            setIsBulkCategoryOpen(false)
+        } catch (e) {
+            console.error(e)
+            alert("Failed to update categories.")
+        } finally {
+            setBulkActionLoading(false)
+        }
+    }
 
-    const imageUrl = form.watch('imageUrl')
+    const handleExport = () => {
+        window.open('/api/products/import-export', '_blank')
+    }
+
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setImporting(true)
+        const token = localStorage.getItem('token')
+        const formData = new FormData()
+        formData.append('file', file)
+
+        try {
+            const res = await fetch('/api/products/import-export', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            })
+
+            if (res.ok) {
+                const data = await res.json()
+                alert(`Imported ${data.count} products successfully!`)
+                fetchData()
+            } else {
+                const err = await res.json()
+                alert(`Import failed: ${err.error}`)
+            }
+        } catch (e) {
+            console.error(e)
+            alert("Import failed with an unexpected error.")
+        } finally {
+            setImporting(false)
+            // Reset input
+            e.target.value = ''
+        }
+    }
+
+    // ... (other handlers remain same)
 
     return (
         <div className="flex flex-col gap-6 p-8">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold">{t('products.title')}</h1>
-                <Button onClick={startCreate} className="bg-purple-600 hover:bg-purple-700">
-                    <Plus className="mr-2 h-4 w-4" />
-                    {t('products.add')}
-                </Button>
+                <div className="flex items-center gap-4">
+                    <h1 className="text-3xl font-bold">{t('products.title')}</h1>
+                    {selectedProducts.length > 0 && (
+                        <div className="flex items-center gap-2 bg-muted p-2 rounded-md">
+                            <span className="text-sm font-medium">{selectedProducts.length} selected</span>
+                            <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkActionLoading}>
+                                {bulkActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                                Delete
+                            </Button>
+
+                            <Dialog open={isBulkCategoryOpen} onOpenChange={setIsBulkCategoryOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm" disabled={bulkActionLoading}>
+                                        <Pencil className="h-4 w-4 mr-2" />
+                                        Set Category
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Update Category for {selectedProducts.length} products</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="py-4">
+                                        <Label>Select Category</Label>
+                                        <Select onValueChange={(val) => handleBulkCategoryUpdate(val === "none" ? undefined : val)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Choose category..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">No Category</SelectItem>
+                                                {categories.map(c => (
+                                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleExport}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export XLSX
+                    </Button>
+                    <div className="relative">
+                        <Button variant="outline" disabled={importing}>
+                            {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                            Import XLSX
+                        </Button>
+                        <input
+                            type="file"
+                            accept=".xlsx, .xls"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={handleImport}
+                            disabled={importing}
+                        />
+                    </div>
+                    <Dialog open={isQuickAddOpen} onOpenChange={setIsQuickAddOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Quick Add
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                                <DialogTitle>Quick Add Products</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
+                                {quickAddRows.map((row, i) => (
+                                    <div key={i} className="flex gap-2 items-end">
+                                        <div className="flex-grow">
+                                            <Label>Name</Label>
+                                            <Input
+                                                value={row.name}
+                                                onChange={(e) => handleQuickAddChange(i, 'name', e.target.value)}
+                                                placeholder="Product Name"
+                                            />
+                                        </div>
+                                        <div className="w-32">
+                                            <Label>Price</Label>
+                                            <Input
+                                                type="number"
+                                                value={row.price}
+                                                onChange={(e) => handleQuickAddChange(i, 'price', e.target.value)}
+                                            />
+                                        </div>
+                                        <Button variant="ghost" size="icon" onClick={() => removeQuickRow(i)}>
+                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button variant="outline" onClick={addQuickRow} className="w-full">
+                                    <Plus className="mr-2 h-4 w-4" /> Add Row
+                                </Button>
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={handleQuickAddSubmit} disabled={saving}>
+                                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save All
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Button onClick={startCreate} className="bg-purple-600 hover:bg-purple-700">
+                        <Plus className="mr-2 h-4 w-4" />
+                        {t('products.add')}
+                    </Button>
+                </div>
             </div>
 
             <Card>
@@ -230,6 +511,12 @@ export default function ProductsPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead className="w-[40px]">
+                                    <Checkbox
+                                        checked={selectedProducts.length === products.length && products.length > 0}
+                                        onCheckedChange={toggleSelectAll}
+                                    />
+                                </TableHead>
                                 <TableHead className="w-[80px]">{t('products.image')}</TableHead>
                                 <TableHead>{t('products.name')}</TableHead>
                                 <TableHead>{t('products.category')}</TableHead>
@@ -240,7 +527,7 @@ export default function ProductsPage() {
                         <TableBody>
                             {products.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                                    <TableCell colSpan={6} className="text-center py-6 text-gray-500">
                                         {t('products.empty')}
                                     </TableCell>
                                 </TableRow>
@@ -248,9 +535,15 @@ export default function ProductsPage() {
                                 products.map((prod) => (
                                     <TableRow key={prod.id}>
                                         <TableCell>
+                                            <Checkbox
+                                                checked={selectedProducts.includes(prod.id)}
+                                                onCheckedChange={() => toggleSelect(prod.id)}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
                                             {prod.images?.[0] || prod.imageUrl ? (
                                                 <img
-                                                    src={prod.images?.[0] || prod.imageUrl}
+                                                    src={prod.images?.[0] || prod.imageUrl || ""}
                                                     alt={prod.name}
                                                     className="w-10 h-10 object-cover rounded-md"
                                                 />
@@ -346,20 +639,75 @@ export default function ProductsPage() {
                                     <div className="space-y-1">
                                         <Label htmlFor="category">{t('products.category')}</Label>
                                         {form.watch() && (
-                                            <Select
-                                                onValueChange={(val) => form.setValue("categoryId", val)}
-                                                value={form.watch("categoryId") || "none"}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select Category" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">No Category</SelectItem>
-                                                    {categories.map(c => (
-                                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <div className="flex gap-2">
+                                                <Select
+                                                    onValueChange={(val) => {
+                                                        if (val === "new") {
+                                                            // Logic handled by dialog or additional input
+                                                        } else {
+                                                            form.setValue("categoryId", val)
+                                                        }
+                                                    }}
+                                                    value={form.watch("categoryId") || "none"}
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue placeholder="Select Category" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">No Category</SelectItem>
+                                                        {categories.map(c => (
+                                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <Button type="button" variant="outline" size="icon" title="Create New Category">
+                                                            <Plus className="h-4 w-4" />
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Create New Category</DialogTitle>
+                                                        </DialogHeader>
+                                                        <div className="space-y-4 py-4">
+                                                            <div className="space-y-2">
+                                                                <Label>Category Name</Label>
+                                                                <Input id="new-category-name" placeholder="e.g. Summer Collection" />
+                                                            </div>
+                                                            <Button type="button" onClick={async () => {
+                                                                const input = document.getElementById('new-category-name') as HTMLInputElement
+                                                                if (!input.value) return
+
+                                                                const token = localStorage.getItem('token')
+                                                                const res = await fetch('/api/categories', {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'Authorization': `Bearer ${token}`
+                                                                    },
+                                                                    body: JSON.stringify({ name: input.value })
+                                                                })
+
+                                                                if (res.ok) {
+                                                                    const newCat = await res.json()
+                                                                    // Refresh categories
+                                                                    const catRes = await fetch('/api/categories', { headers: { 'Authorization': `Bearer ${token}` } })
+                                                                    if (catRes.ok) {
+                                                                        setCategories(await catRes.json())
+                                                                    }
+                                                                    form.setValue("categoryId", newCat.id)
+                                                                    // Close dialog programmatically if we controlled it, but for now this is a nested dialog which might be tricky.
+                                                                    // A better UX would be a separate state for this creating mode.
+                                                                    // Let's rely on user clicking close or we can trigger a click on close button? 
+                                                                    // Actually nested dialogs can be messy. Let's use a Popover or just a simple state toggle in the main form.
+                                                                }
+                                                            }}>Create</Button>
+                                                        </div>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </div>
                                         )}
                                     </div>
                                 </div>

@@ -9,11 +9,10 @@ import { Button } from "@/components/ui/button"
 import {
     Card,
     CardContent,
-    CardHeader,
-    CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
     Table,
     TableBody,
@@ -27,7 +26,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
     DialogFooter,
 } from "@/components/ui/dialog"
 import {
@@ -41,15 +39,17 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Pencil, Trash2, Plus, Loader2 } from "lucide-react"
+import { Pencil, Trash2, Plus, Loader2, ScrollText } from "lucide-react"
 
 const categorySchema = z.object({
     name: z.string().min(1, "Name is required"),
+    productIds: z.array(z.string()).optional()
 })
 
 export default function CategoriesPage() {
     const { t } = useLanguage()
     const [categories, setCategories] = useState<any[]>([])
+    const [allProducts, setAllProducts] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingCategory, setEditingCategory] = useState<any>(null)
@@ -57,19 +57,19 @@ export default function CategoriesPage() {
 
     const form = useForm<z.infer<typeof categorySchema>>({
         resolver: zodResolver(categorySchema),
-        defaultValues: { name: "" }
+        defaultValues: { name: "", productIds: [] }
     })
 
-    const fetchCategories = async () => {
+    const fetchData = async () => {
         const token = localStorage.getItem('token')
         try {
-            const res = await fetch('/api/categories', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-            if (res.ok) {
-                const data = await res.json()
-                setCategories(data)
-            }
+            const [catRes, prodRes] = await Promise.all([
+                fetch('/api/categories', { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } })
+            ])
+
+            if (catRes.ok) setCategories(await catRes.json())
+            if (prodRes.ok) setAllProducts(await prodRes.json())
         } catch (e) {
             console.error(e)
         } finally {
@@ -78,7 +78,7 @@ export default function CategoriesPage() {
     }
 
     useEffect(() => {
-        fetchCategories()
+        fetchData()
     }, [])
 
     const onSubmit = async (values: z.infer<typeof categorySchema>) => {
@@ -102,7 +102,7 @@ export default function CategoriesPage() {
 
             if (res.ok) {
                 setIsDialogOpen(false)
-                fetchCategories()
+                fetchData()
                 form.reset()
                 setEditingCategory(null)
             }
@@ -115,13 +115,16 @@ export default function CategoriesPage() {
 
     const startEdit = (category: any) => {
         setEditingCategory(category)
-        form.setValue("name", category.name)
+        form.reset({
+            name: category.name,
+            productIds: category.products?.map((p: any) => p.id) || []
+        })
         setIsDialogOpen(true)
     }
 
     const startCreate = () => {
         setEditingCategory(null)
-        form.reset()
+        form.reset({ name: "", productIds: [] })
         setIsDialogOpen(true)
     }
 
@@ -134,7 +137,7 @@ export default function CategoriesPage() {
             })
 
             if (res.ok) {
-                fetchCategories()
+                fetchData()
             }
         } catch (e) {
             console.error(e)
@@ -216,11 +219,11 @@ export default function CategoriesPage() {
             </Card>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent>
+                <DialogContent className="max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{editingCategory ? t('categories.edit') : t('categories.add')}</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <div className="space-y-2">
                             <Label htmlFor="name">{t('categories.name')}</Label>
                             <Input id="name" {...form.register("name")} />
@@ -228,6 +231,37 @@ export default function CategoriesPage() {
                                 <p className="text-red-500 text-sm">{form.formState.errors.name.message}</p>
                             )}
                         </div>
+
+                        <div className="space-y-3">
+                            <Label>Assigned Products</Label>
+                            <div className="border rounded-md p-4 max-h-[200px] overflow-y-auto space-y-2">
+                                {allProducts.length === 0 ? (
+                                    <div className="text-sm text-muted-foreground text-center py-4">No products available</div>
+                                ) : (
+                                    allProducts.map((prod) => (
+                                        <div key={prod.id} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`prod-${prod.id}`}
+                                                checked={(form.watch('productIds') || []).includes(prod.id)}
+                                                onCheckedChange={(checked) => {
+                                                    const current = form.getValues('productIds') || []
+                                                    if (checked) {
+                                                        form.setValue('productIds', [...current, prod.id])
+                                                    } else {
+                                                        form.setValue('productIds', current.filter(id => id !== prod.id))
+                                                    }
+                                                }}
+                                            />
+                                            <Label htmlFor={`prod-${prod.id}`} className="text-sm font-normal cursor-pointer">
+                                                {prod.name}
+                                            </Label>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">Select products to assign to this category.</p>
+                        </div>
+
                         <DialogFooter>
                             <Button type="submit" disabled={saving}>
                                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
