@@ -23,9 +23,23 @@ export async function PUT(request: Request) {
         let botInfo;
         try {
             const bot = new Telegraf(token)
-            botInfo = await bot.telegram.getMe()
+
+            // Add 5s timeout to prevent 504 (Vercel/Next.js default is often 10s)
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Telegram API timeout")), 5000)
+            );
+
+            botInfo = await Promise.race([
+                bot.telegram.getMe(),
+                timeoutPromise
+            ]) as any;
+
         } catch (e: any) {
-            return NextResponse.json({ error: "Invalid Telegram Bot Token. Please check and try again." }, { status: 400 })
+            console.error("Telegram verification failed:", e);
+            if (e.message === "Telegram API timeout") {
+                return NextResponse.json({ error: "Connection to Telegram timed out. Please try again." }, { status: 504 })
+            }
+            return NextResponse.json({ error: "Invalid Telegram Bot Token or connection failed." }, { status: 400 })
         }
 
         // Check if bot is already used by another shop
