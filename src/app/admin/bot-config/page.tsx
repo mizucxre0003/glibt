@@ -72,7 +72,12 @@ export default function BotConfigPage() {
                 body: JSON.stringify({ token: values.token })
             })
 
-            const tokenData = await tokenRes.json()
+            let tokenData;
+            try {
+                tokenData = await tokenRes.json();
+            } catch (e) {
+                throw new Error(`Server returned invalid response (Token): ${tokenRes.status}`);
+            }
 
             if (!tokenRes.ok) {
                 throw new Error(tokenData.error || 'Failed to save token')
@@ -84,7 +89,12 @@ export default function BotConfigPage() {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
 
-            const webhookData = await webhookRes.json()
+            let webhookData;
+            try {
+                webhookData = await webhookRes.json();
+            } catch (e) {
+                throw new Error(`Server returned invalid response (Webhook): ${webhookRes.status}`);
+            }
 
             if (!webhookRes.ok) {
                 throw new Error(webhookData.error || 'Failed to set webhook')

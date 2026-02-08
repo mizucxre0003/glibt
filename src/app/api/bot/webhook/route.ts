@@ -12,7 +12,7 @@ export async function POST(request: Request) {
         }
 
         const shop = await prisma.shop.findUnique({
-            where: { ownerId: user.userId },
+            where: { id: user.shopId },
         })
 
         if (!shop || !shop.botToken) {
