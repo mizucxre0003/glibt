@@ -28,6 +28,7 @@ const settingsSchema = z.object({
     currency: z.string().min(1, "Currency is required"),
     primaryColor: z.string().optional(),
     welcomeMessage: z.string().optional(),
+    notificationChatId: z.string().optional(),
 })
 
 export default function SettingsPage() {
@@ -41,7 +42,8 @@ export default function SettingsPage() {
         defaultValues: {
             currency: "USD",
             primaryColor: "#000000",
-            welcomeMessage: ""
+            welcomeMessage: "",
+            notificationChatId: ""
         }
     })
 
@@ -56,6 +58,7 @@ export default function SettingsPage() {
                 form.setValue('currency', data.currency || "USD")
                 form.setValue('primaryColor', data.primaryColor || "#000000")
                 form.setValue('welcomeMessage', data.welcomeMessage || "")
+                form.setValue('notificationChatId', data.notificationChatId || "")
 
                 // Check if currency is standard
                 const standards = ["USD", "EUR", "RUB", "KZT", "UAH"]
@@ -193,6 +196,19 @@ export default function SettingsPage() {
                             <p className="text-sm text-gray-500">
                                 Displayed at the top of the product catalog.
                             </p>
+                        </div>
+
+                        <div className="space-y-2 border-t pt-4">
+                            <Label>Admin Notification Chat ID</Label>
+                            <div className="flex flex-col gap-2">
+                                <Input
+                                    {...form.register("notificationChatId")}
+                                    placeholder="e.g. 123456789"
+                                />
+                                <p className="text-sm text-gray-500">
+                                    To receive order notifications, start your bot and send the command <code>/id</code>. Copy the number here.
+                                </p>
+                            </div>
                         </div>
 
                         <Button type="submit" disabled={saving}>

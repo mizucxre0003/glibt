@@ -275,6 +275,7 @@ export default function OrdersPage() {
                                     </Select>
                                 </div>
                             </div>
+                            </div>
                             <div>
                                 <h3 className="font-semibold mb-4">Items</h3>
                                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
@@ -296,11 +297,61 @@ export default function OrdersPage() {
                                     <span className="font-bold text-lg">Total</span>
                                     <span className="font-bold text-xl">${Number(selectedOrder.totalAmount).toFixed(2)}</span>
                                 </div>
+
+                                <div className="mt-8 pt-6 border-t">
+                                    <h3 className="font-semibold mb-2">Send Message to Customer</h3>
+                                    <div className="space-y-2">
+                                        <textarea
+                                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            placeholder="Type your message here..."
+                                            id="message-input"
+                                        />
+                                        <Button 
+                                            size="sm" 
+                                            onClick={async (e) => {
+                                                const btn = e.currentTarget
+                                                const input = document.getElementById('message-input') as HTMLTextAreaElement
+                                                const message = input.value
+                                                if (!message) return
+
+                                                btn.disabled = true
+                                                btn.innerText = "Sending..."
+                                                
+                                                const token = localStorage.getItem('token')
+                                                try {
+                                                    const res = await fetch(`/api/orders/${selectedOrder.id}/message`, {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Content-Type': 'application/json',
+                                                            'Authorization': `Bearer ${token}`
+                                                        },
+                                                        body: JSON.stringify({ message })
+                                                    })
+                                                    
+                                                    if (res.ok) {
+                                                        alert("Message sent!")
+                                                        input.value = ""
+                                                    } else {
+                                                        alert("Failed to send message.")
+                                                    }
+                                                } catch (err) {
+                                                    console.error(err)
+                                                    alert("Error sending message.")
+                                                } finally {
+                                                    btn.disabled = false
+                                                    btn.innerText = "Send Message"
+                                                }
+                                            }}
+                                        >
+                                            Send Message
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
-                </DialogContent>
-            </Dialog>
-        </div>
+            </DialogContent>
+        </Dialog>
+        </div >
     )
 }

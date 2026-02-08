@@ -3,8 +3,17 @@ import { Telegraf } from 'telegraf'
 import prisma from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
 
-// Map to store bot instances in memory
-const botCache = new Map<string, Telegraf>()
+// Use globalThis to cache bots across hot-reloads in development
+const globalForBots = globalThis as unknown as {
+    botCache: Map<string, Telegraf>
+}
+
+// Initialize cache if it doesn't exist
+if (!globalForBots.botCache) {
+    globalForBots.botCache = new Map<string, Telegraf>()
+}
+
+const botCache = globalForBots.botCache
 
 export async function POST(
     request: Request,
@@ -14,15 +23,16 @@ export async function POST(
 
     try {
         const update = await request.json()
-        console.log(`[Webhook] Received update for shop: ${shopId}`)
+        // console.log(`[Webhook] Received update for shop: ${shopId}`) // verbose logging
 
         // 1. Validate Shop ID exists
         if (!shopId) {
+            console.error('[Webhook] Missing shopId')
             return NextResponse.json({ error: 'Missing shopId' }, { status: 400 })
         }
 
-        // 2. Fetch Shop and Bot Token from Database
-        // Optimization: We could cache this, but for security and consistency, DB fetch is safer for now.
+        // 2. Fetch Shop from Database
+        // We fetch minimal data to check status and get token
         const shop = await prisma.shop.findUnique({
             where: { id: shopId },
             select: {
@@ -33,7 +43,7 @@ export async function POST(
         })
 
         if (!shop) {
-            console.warn(`[Webhook] Shop not found: ${shopId}`)
+            console.error(`[Webhook] Shop not found: ${shopId}`)
             return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
         }
 
@@ -46,38 +56,47 @@ export async function POST(
             return NextResponse.json({ message: 'Shop is inactive' })
         }
 
-        // 3. Decrypt the Bot Token
-        let botToken: string
-        try {
-            botToken = decrypt(shop.botToken)
-        } catch (error) {
-            console.error(`[Webhook] Failed to decrypt token for shop ${shopId}`, error)
-            return NextResponse.json({ error: 'Configuration error' }, { status: 500 })
-        }
-
-        // 4. Initialize or retrieve Telegraf instance
+        // 3. Initialize Bot Instance (from Cache or Create New)
         let bot = botCache.get(shopId)
+
         if (!bot) {
-            bot = new Telegraf(botToken)
-            setupBotLogic(bot, shopId)
-            botCache.set(shopId, bot)
+            try {
+                const botToken = decrypt(shop.botToken)
+                bot = new Telegraf(botToken)
+
+                // Setup bot logic (commands, etc.)
+                setupBotLogic(bot, shopId)
+
+                // Save to cache
+                botCache.set(shopId, bot)
+                console.log(`[Webhook] Initialized new bot instance for shop: ${shopId}`)
+            } catch (error) {
+                console.error(`[Webhook] Failed to initialize bot for shop ${shopId}`, error)
+                // Return 200 to Telegram to stop retries if configuration is bad
+                return NextResponse.json({ ok: true })
+            }
         }
 
-        // 5. Process the Update
-        await bot.handleUpdate(update)
+        // 4. Process the Update
+        try {
+            await bot.handleUpdate(update)
+        } catch (botError) {
+            console.error(`[Webhook] Telegraf error for shop ${shopId}:`, botError)
+            // Swallow error to keep Telegram happy (retrying won't fix code bugs)
+        }
 
-        // 6. Return 200 OK
+        // 5. Return 200 OK
         return NextResponse.json({ ok: true })
 
     } catch (error) {
-        console.error(`[Webhook] Error processing update for shop ${shopId}:`, error)
-        // Always return 200 to Telegram
+        console.error(`[Webhook] Critical error processing update for shop ${shopId}:`, error)
+        // Always return 200 to Telegram to prevent infinite retry loops on their side
         return NextResponse.json({ ok: true })
     }
 }
 
 function setupBotLogic(bot: Telegraf, shopId: string) {
-    // Middleware
+    // Middleware to attach shop context if needed
     bot.use(async (ctx, next) => {
         (ctx as any).shopId = shopId
         await next()
@@ -85,8 +104,14 @@ function setupBotLogic(bot: Telegraf, shopId: string) {
 
     // /start command
     bot.start(async (ctx) => {
-        console.log(`[Bot] /start command received for shop ${shopId}`);
-        const shopUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://koyeb-app-url.com' // Fallback for button link if env invalid
+        // console.log(`[Bot] /start command received for shop ${shopId}`);
+        const shopUrl = process.env.NEXT_PUBLIC_APP_URL
+
+        if (!shopUrl) {
+            console.error('[Bot] NEXT_PUBLIC_APP_URL is not set in environment variables!')
+            return ctx.reply('Error: Store URL is not configured. Please contact support.')
+        }
+
         const miniAppUrl = `${shopUrl}/tma?shopId=${shopId}`
 
         try {
@@ -102,15 +127,21 @@ function setupBotLogic(bot: Telegraf, shopId: string) {
                     ]
                 }
             })
-            console.log(`[Bot] /start reply sent to ${ctx.from.id}`);
         } catch (e) {
-            console.error(`[Bot] Failed to send /start reply:`, e);
+            console.error(`[Bot] Failed to send /start reply for shop ${shopId}:`, e);
         }
     })
 
     bot.help((ctx) => ctx.reply('Contact support if you need help!'))
 
+    // Command to get Chat ID for notifications
+    bot.command('id', (ctx) => {
+        const chatId = ctx.from.id
+        ctx.reply(`Your Chat ID: <code>${chatId}</code>\n\nCopy this ID and paste it into the "Admin Notification Chat ID" field in your shop settings to receive order notifications.`, { parse_mode: 'HTML' })
+    })
+
+    // Catch-all for logging or specific handling
     bot.on('message', (ctx) => {
-        // Handle other messages
+        // console.log('[Bot] Received message:', ctx.message)
     })
 }

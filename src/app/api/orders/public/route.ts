@@ -72,7 +72,37 @@ export async function POST(request: Request) {
             }
         })
 
-        // TODO: Send Telegram notification to User and Shop Owner
+        // 3. Send Telegram notification to Shop Owner
+        const shop = await prisma.shop.findUnique({
+            where: { id: shopId },
+            select: { notificationChatId: true, botToken: true }
+        })
+
+        if (shop?.notificationChatId && shop?.botToken) {
+            try {
+                // We need to dynamically import Telegraf here or use a helper to avoid cold start issues if possible,
+                // but for now, we'll instantiate it directly to ensure delivery.
+                // In a perfect world, we'd use the global cache, but accessing global cache from a different route 
+                // might be tricky if they run in different isolated contexts (depending on deployment).
+                // Re-instantiating for a single notification is acceptable overhead.
+
+                const { decrypt } = await import('@/lib/crypto')
+                const { Telegraf } = await import('telegraf')
+
+                const token = decrypt(shop.botToken)
+                const bot = new Telegraf(token)
+
+                const message = `🔔 <b>New Order!</b>\n\n` +
+                    `<b>Customer:</b> ${firstName} ${username ? `(@${username})` : ''}\n` +
+                    `<b>Total:</b> ${totalAmount}\n` +
+                    `<b>Items:</b>\n${items.map((i: any) => `- ${i.name} x${i.quantity}`).join('\n')}\n` +
+                    `\n<i>Check the Admin Panel for details.</i>`
+
+                await bot.telegram.sendMessage(shop.notificationChatId, message, { parse_mode: 'HTML' })
+            } catch (notifyError) {
+                console.error("Failed to send notification:", notifyError)
+            }
+        }
 
         // Convert BigInt to string for JSON serialization
         const serializedOrder = JSON.parse(JSON.stringify(order, (key, value) =>

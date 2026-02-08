@@ -1,6 +1,6 @@
 # SaaS Telegram Shop Platform 🛍️
 
-A powerful, monolithic platform for creating and managing Telegram Shop Mini Apps (TMA). Built with **Next.js**, **Fastify**, and **Prisma**.
+A powerful, monolithic platform for creating and managing Telegram Shop Mini Apps (TMA). Built with **Next.js** (App Router), **Prisma**, and **Tailwind CSS**.
 
 This solution allows anyone to deploy their own "Shopify for Telegram" — a platform where users can register, create shops, and manage their products, which are then instantly available via a Telegram Bot Web App.
 
@@ -52,8 +52,7 @@ The platform serves two main types of users: **Shop Owners** (Merchants) and **C
 
 ## 🚀 Tech Stack
 
-- **Frontend**: [Next.js 14](https://nextjs.org/) (App Router), [React](https://react.dev/), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)
-- **Backend**: [Fastify](https://fastify.dev/) (Custom Server), Node.js
+- **Frontend & API**: [Next.js 14](https://nextjs.org/) (App Router), [React](https://react.dev/), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)
 - **Database**: [PostgreSQL](https://www.postgresql.org/) (via [Neon](https://neon.tech/) or local), [Prisma ORM](https://www.prisma.io/)
 - **State Management**: React Context, Local Storage
 - **Image Storage**: [Cloudinary](https://cloudinary.com/)
@@ -100,7 +99,7 @@ The platform serves two main types of users: **Shop Owners** (Merchants) and **C
     CLOUDINARY_API_SECRET="your_api_secret"
 
     # App Config
-    NEXT_PUBLIC_APP_URL="http://localhost:3000" # Change for production
+    NEXT_PUBLIC_APP_URL="https://your-app-url.com" # Change for production
     NODE_ENV="development"
     ```
 
@@ -127,19 +126,16 @@ The platform serves two main types of users: **Shop Owners** (Merchants) and **C
 ├── prisma/               # Database Schema (schema.prisma)
 ├── public/               # Static assets
 ├── src/
-│   ├── app/              # Next.js App Router (Frontend Pages)
+│   ├── app/              # Next.js App Router
 │   │   ├── admin/        # Shop Owner Dashboard
+│   │   ├── api/          # Backend Logic (Next.js Route Handlers)
 │   │   ├── (auth)/       # Authentication Pages
+│   │   ├── tma/          # Telegram Mini App Pages
 │   │   └── layout.tsx    # Root Layout
 │   ├── components/       # UI Components (shadcn/ui)
-│   ├── lib/              # Shared Utilities (Prisma Client, i18n, Cloudinary)
-│   ├── server/           # Backend Logic (Fastify)
-│   │   ├── index.ts      # Server Entry Point
-│   │   ├── routes/       # API Routes (Auth, Products, Bot, Upload)
-│   │   └── services/     # core/business logic
+│   ├── lib/              # Shared Utilities (Prisma, Auth, Cloudinary)
 │   └── types/            # TypeScript Interfaces
 ├── next.config.mjs       # Next.js Configuration
-├── tsconfig.server.json  # TypeScript Config for Backend
 └── Dockerfile            # Production Build Instructions
 ```
 
@@ -180,22 +176,20 @@ The project is configured for **Koyeb** (or any Docker-based hosting).
 2.  Create a new Web Service on Koyeb connected to the repo.
 3.  **Environment Variables**: Add all variables from `.env` to Koyeb Settings.
 4.  **Build Command**: Auto-detected from Dockerfile.
-5.  **Run Command**: `npm start` (Runs the custom Fastify server).
+5.  **Run Command**: `npm start`.
 
-### Docker Compilation & Memory Optimization
-To save memory in production (crucial for free tier hosting), we perform a specific build process:
+### Docker Compilation
+To save memory in production (crucial for free tier hosting):
 1.  **Standalone Output**: Next.js is configured to `output: "standalone"`, keeping the build size minimal.
-2.  **Server Compilation**: `npm run build` compiles `src/server` (TypeScript) into `dist/` (JavaScript).
-3.  **Runtime**: `npm start` runs the app using standard `node` (not `ts-node`), significantly reducing memory usage (heap size < 200MB).
-4.  **Memory Limit**: We set `NODE_OPTIONS="--max-old-space-size=512"` in Dockerfile to prevent OOM crashes.
+2.  **Memory Limit**: We set `NODE_OPTIONS="--max-old-space-size=512"` in Dockerfile to prevent OOM crashes.
 
 ---
 
 ## 📜 Scripts
 
-- `npm run dev`: Start development server (ts-node + nodemon).
-- `npm run build`: Build for production (Next.js + Server TS -> JS).
-- `npm start`: Start production server (Node.js).
+- `npm run dev`: Start development server.
+- `npm run build`: Build for production.
+- `npm start`: Start production server.
 - `npm run lint`: Run ESLint.
 
 ---

@@ -5,8 +5,9 @@ import { getAuthUser } from '@/lib/auth-helper'
 
 const settingsSchema = z.object({
     currency: z.string().min(1).max(10),
-    primaryColor: z.string().optional().default("#000000"), // Relaxed validation for debugging
+    primaryColor: z.string().optional().default("#000000"),
     welcomeMessage: z.string().optional(),
+    notificationChatId: z.string().optional(),
 })
 
 export async function GET(request: Request) {
@@ -18,7 +19,12 @@ export async function GET(request: Request) {
 
         const shop = await prisma.shop.findUnique({
             where: { id: user.shopId },
-            select: { currency: true, primaryColor: true, welcomeMessage: true }
+            select: {
+                currency: true,
+                primaryColor: true,
+                welcomeMessage: true,
+                notificationChatId: true
+            }
         })
 
         if (!shop) {
@@ -47,7 +53,8 @@ export async function PUT(request: Request) {
             data: {
                 currency: data.currency,
                 primaryColor: data.primaryColor,
-                welcomeMessage: data.welcomeMessage
+                welcomeMessage: data.welcomeMessage,
+                notificationChatId: data.notificationChatId
             }
         })
 
