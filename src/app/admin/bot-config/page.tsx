@@ -106,6 +106,36 @@ export default function BotConfigPage() {
         }
     }
 
+    const handleUnlink = async () => {
+        if (!confirm(t('bot.confirmUnlink') || "Are you sure you want to unlink the bot?")) return
+
+        setLoading(true)
+        setError(null)
+        setSuccess(null)
+        const token = localStorage.getItem('token')
+
+        try {
+            const res = await fetch('/api/bot/token', {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            const data = await res.json()
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to unlink bot')
+            }
+
+            setSuccess("Bot unlinked successfully")
+            form.reset({ token: "" })
+            fetchStatus()
+        } catch (err: any) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     return (
         <div className="flex flex-col gap-6 p-8">
             <h1 className="text-3xl font-bold">{t('bot.title')}</h1>
@@ -150,6 +180,18 @@ export default function BotConfigPage() {
                             <Button className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white" type="submit" disabled={loading}>
                                 {loading ? t('auth.creating') : t('bot.saveButton')}
                             </Button>
+
+                            {status?.configured && (
+                                <Button
+                                    className="w-full mt-2"
+                                    variant="destructive"
+                                    type="button"
+                                    disabled={loading}
+                                    onClick={handleUnlink}
+                                >
+                                    {t('bot.unlink') || "Unlink Bot"}
+                                </Button>
+                            )}
                         </form>
                     </CardContent>
                 </Card>
