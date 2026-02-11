@@ -23,7 +23,12 @@ export async function GET(request: Request) {
             orderBy: { createdAt: 'desc' }
         })
 
-        return NextResponse.json(orders)
+        // Serialize BigInt to string for JSON
+        const serializedOrders = JSON.parse(JSON.stringify(orders, (key, value) =>
+            typeof value === 'bigint' ? value.toString() : value
+        ))
+
+        return NextResponse.json(serializedOrders)
     } catch (error) {
         console.error(error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

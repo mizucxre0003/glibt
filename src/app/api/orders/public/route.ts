@@ -14,8 +14,6 @@ export async function POST(request: Request) {
             firstName,
             items,
             totalAmount,
-            address,
-            phone,
             comment
         } = body
 
@@ -59,8 +57,6 @@ export async function POST(request: Request) {
                 customerId: customer.id,
                 totalAmount,
                 status: 'NEW',
-                address,
-                phone,
                 comment,
                 items: {
                     create: items.map((item: any) => ({

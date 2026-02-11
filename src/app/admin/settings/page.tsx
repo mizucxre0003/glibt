@@ -26,8 +26,6 @@ import {
 
 const settingsSchema = z.object({
     currency: z.string().min(1, "Currency is required"),
-    primaryColor: z.string().optional(),
-    welcomeMessage: z.string().optional(),
     notificationChatId: z.string().optional(),
 })
 
@@ -41,8 +39,6 @@ export default function SettingsPage() {
         resolver: zodResolver(settingsSchema),
         defaultValues: {
             currency: "USD",
-            primaryColor: "#000000",
-            welcomeMessage: "",
             notificationChatId: ""
         }
     })
@@ -56,8 +52,6 @@ export default function SettingsPage() {
             if (res.ok) {
                 const data = await res.json()
                 form.setValue('currency', data.currency || "USD")
-                form.setValue('primaryColor', data.primaryColor || "#000000")
-                form.setValue('welcomeMessage', data.welcomeMessage || "")
                 form.setValue('notificationChatId', data.notificationChatId || "")
 
                 // Check if currency is standard
@@ -169,36 +163,6 @@ export default function SettingsPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Primary Color</Label>
-                            <div className="flex gap-4 items-center">
-                                <Input
-                                    type="color"
-                                    {...form.register("primaryColor")}
-                                    className="w-16 h-10 p-1 cursor-pointer"
-                                />
-                                <Input
-                                    {...form.register("primaryColor")}
-                                    placeholder="#000000"
-                                    className="font-mono max-w-[120px]"
-                                />
-                            </div>
-                            <p className="text-sm text-gray-500">
-                                The main accent color for your Mini App.
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Welcome Message</Label>
-                            <Input
-                                {...form.register("welcomeMessage")}
-                                placeholder="Welcome to our shop!"
-                            />
-                            <p className="text-sm text-gray-500">
-                                Displayed at the top of the product catalog.
-                            </p>
-                        </div>
-
-                        <div className="space-y-2 border-t pt-4">
                             <Label>Admin Notification Chat ID</Label>
                             <div className="flex flex-col gap-2">
                                 <Input

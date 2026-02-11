@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth-helper'
+import { z } from 'zod'
 
-const settingsSchema = z.object({
-    currency: z.string().min(1, "Currency is required"),
-    notificationChatId: z.string().optional(),
+const configSchema = z.object({
+    primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format").optional(),
+    welcomeMessage: z.string().optional(),
 })
 
 export async function GET(request: Request) {
@@ -18,8 +18,8 @@ export async function GET(request: Request) {
         const shop = await prisma.shop.findUnique({
             where: { id: user.shopId },
             select: {
-                currency: true,
-                notificationChatId: true
+                primaryColor: true,
+                welcomeMessage: true
             }
         })
 
@@ -42,24 +42,20 @@ export async function PUT(request: Request) {
         }
 
         const body = await request.json()
-        const data = settingsSchema.parse(body)
+        const validated = configSchema.parse(body)
 
         const shop = await prisma.shop.update({
             where: { id: user.shopId },
-            data: {
-                currency: data.currency,
-                notificationChatId: data.notificationChatId
-            }
+            data: validated
         })
 
         return NextResponse.json({
-            currency: shop.currency,
-            notificationChatId: shop.notificationChatId
+            primaryColor: shop.primaryColor,
+            welcomeMessage: shop.welcomeMessage
         })
-
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: (error as z.ZodError).issues }, { status: 400 })
+            return NextResponse.json({ error: error.issues }, { status: 400 })
         }
         console.error(error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

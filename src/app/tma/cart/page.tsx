@@ -27,8 +27,6 @@ export default function CartPage() {
     const [success, setSuccess] = useState(false)
 
     // Form State
-    const [address, setAddress] = useState("")
-    const [phone, setPhone] = useState("")
     const [comment, setComment] = useState("")
 
     const handleCheckout = async () => {
@@ -43,8 +41,6 @@ export default function CartPage() {
                 firstName: user.first_name,
                 items: items,
                 totalAmount: total,
-                address,
-                phone,
                 comment
             }
 
@@ -157,32 +153,16 @@ export default function CartPage() {
                     ))}
                 </div>
 
-                {/* Delivery Form */}
+                {/* Message Form */}
                 <div className="space-y-4">
-                    <h2 className="font-semibold text-lg">Delivery Details</h2>
+                    <h2 className="font-semibold text-lg">Order Message</h2>
                     <div className="space-y-2">
-                        <Label>Address</Label>
+                        <Label>Message (Optional)</Label>
                         <Textarea
-                            placeholder="Enter delivery address..."
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Phone Number</Label>
-                        <Input
-                            type="tel"
-                            placeholder="+1 234 567 8900"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Comment (Optional)</Label>
-                        <Input
-                            placeholder="Door code, ring bell..."
+                            placeholder="Add any special requests or comments..."
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
+                            rows={3}
                         />
                     </div>
                 </div>
@@ -198,7 +178,7 @@ export default function CartPage() {
                         className="w-full h-12 text-lg font-bold"
                         style={{ backgroundColor: shop?.primaryColor }}
                         onClick={handleCheckout}
-                        disabled={loading || !address || !phone}
+                        disabled={loading}
                     >
                         {loading ? <Loader2 className="mr-2 animate-spin" /> : "Place Order"}
                     </Button>

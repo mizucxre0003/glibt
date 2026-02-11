@@ -16,11 +16,17 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
-const formSchema = z.object({
+const tokenSchema = z.object({
     token: z.string().min(10).regex(/^\d+:[A-Za-z0-9_-]+$/, "Invalid Telegram Bot Token format"),
+})
+
+const appearanceSchema = z.object({
+    primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
+    welcomeMessage: z.string().optional(),
 })
 
 export default function BotConfigPage() {
@@ -30,8 +36,18 @@ export default function BotConfigPage() {
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    // Separate form for token
+    const tokenForm = useForm<z.infer<typeof tokenSchema>>({
+        resolver: zodResolver(tokenSchema),
+    })
+
+    // Separate form for appearance
+    const appearanceForm = useForm<z.infer<typeof appearanceSchema>>({
+        resolver: zodResolver(appearanceSchema),
+        defaultValues: {
+            primaryColor: "#000000",
+            welcomeMessage: ""
+        }
     })
 
     const fetchStatus = async () => {
@@ -51,11 +67,30 @@ export default function BotConfigPage() {
         }
     }
 
+    const fetchAppearance = async () => {
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        try {
+            const res = await fetch('/api/bot/config', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (res.ok) {
+                const data = await res.json()
+                appearanceForm.setValue('primaryColor', data.primaryColor || "#000000")
+                appearanceForm.setValue('welcomeMessage', data.welcomeMessage || "")
+            }
+        } catch (e) {
+            console.error(e)
+        }
+    }
+
     useEffect(() => {
         fetchStatus()
+        fetchAppearance()
     }, [])
 
-    const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const onTokenSubmit = async (values: z.infer<typeof tokenSchema>) => {
         setLoading(true)
         setError(null)
         setSuccess(null)
@@ -101,14 +136,44 @@ export default function BotConfigPage() {
             }
 
             if (webhookData.warning) {
-                setSuccess(`${t('bot.setWebhookSuccess')} (${webhookData.warning})`) // Modified success message
+                setSuccess(`${t('bot.setWebhookSuccess')} (${webhookData.warning})`)
             } else {
                 setSuccess(t('bot.setWebhookSuccess'))
             }
 
-            form.reset()
+            tokenForm.reset()
             fetchStatus()
 
+        } catch (err: any) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const onAppearanceSubmit = async (values: z.infer<typeof appearanceSchema>) => {
+        setLoading(true)
+        setError(null)
+        setSuccess(null)
+        const token = localStorage.getItem('token')
+
+        try {
+            const res = await fetch('/api/bot/config', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(values)
+            })
+
+            const data = await res.json()
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to save appearance settings')
+            }
+
+            setSuccess("Appearance settings saved successfully")
         } catch (err: any) {
             setError(err.message)
         } finally {
@@ -137,7 +202,7 @@ export default function BotConfigPage() {
             }
 
             setSuccess("Bot unlinked successfully")
-            form.reset({ token: "" })
+            tokenForm.reset({ token: "" })
             fetchStatus()
         } catch (err: any) {
             setError(err.message)
@@ -157,15 +222,15 @@ export default function BotConfigPage() {
                         <CardDescription>{t('bot.tokenPlaceholder')}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={form.handleSubmit(onSubmit)}>
+                        <form onSubmit={tokenForm.handleSubmit(onTokenSubmit)}>
                             <div className="grid w-full items-center gap-4">
                                 <div className="flex flex-col space-y-1.5">
                                     <Label htmlFor="token">{t('bot.tokenLabel')}</Label>
                                     <Input
                                         id="token"
-                                        {...form.register("token")}
+                                        {...tokenForm.register("token")}
                                     />
-                                    {form.formState.errors.token && (
+                                    {tokenForm.formState.errors.token && (
                                         <p className="text-sm text-red-500">{t('bot.invalidToken')}</p>
                                     )}
                                 </div>
@@ -231,6 +296,52 @@ export default function BotConfigPage() {
                                 </span>
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="md:col-span-2">
+                    <CardHeader>
+                        <CardTitle>TMA Appearance</CardTitle>
+                        <CardDescription>Customize the look and feel of your Telegram Mini App</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={appearanceForm.handleSubmit(onAppearanceSubmit)}>
+                            <div className="grid gap-4">
+                                <div className="flex flex-col space-y-1.5">
+                                    <Label htmlFor="primaryColor">Primary Color</Label>
+                                    <div className="flex gap-2 items-center">
+                                        <Input
+                                            id="primaryColor"
+                                            type="color"
+                                            className="w-20 h-10"
+                                            {...appearanceForm.register("primaryColor")}
+                                        />
+                                        <Input
+                                            type="text"
+                                            className="flex-1"
+                                            {...appearanceForm.register("primaryColor")}
+                                        />
+                                    </div>
+                                    {appearanceForm.formState.errors.primaryColor && (
+                                        <p className="text-sm text-red-500">Invalid color format (use #RRGGBB)</p>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-col space-y-1.5">
+                                    <Label htmlFor="welcomeMessage">Welcome Message</Label>
+                                    <Textarea
+                                        id="welcomeMessage"
+                                        placeholder="Welcome to our shop! 🛍️"
+                                        rows={3}
+                                        {...appearanceForm.register("welcomeMessage")}
+                                    />
+                                </div>
+                            </div>
+
+                            <Button className="w-full mt-4" type="submit" disabled={loading}>
+                                {loading ? "Saving..." : "Save Appearance"}
+                            </Button>
+                        </form>
                     </CardContent>
                 </Card>
             </div>
