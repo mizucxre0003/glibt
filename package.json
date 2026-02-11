@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "npx prisma db push && next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "promote-user": "node scripts/promote-user.js"
   },
   "keywords": [],
   "author": "",
